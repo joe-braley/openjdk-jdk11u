@@ -88,13 +88,6 @@ ifeq ($(JLINK_KEEP_PACKAGED_MODULES), true)
   JLINK_JDK_EXTRA_OPTS := --keep-packaged-modules $(JDK_IMAGE_DIR)/jmods
 endif
 
-$(ECHO) Creating the JDK IMAGE HERE
-
-$(ECHO) $(JDK_IMAGE_DIR)
-
-$(ECHO) Checking CDS is ENABLED???
-$(ECHO) $(ENABLE_CDS)
-
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE)
 	$(ECHO) Creating jdk image
