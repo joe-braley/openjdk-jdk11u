@@ -88,7 +88,7 @@ ifeq ($(JLINK_KEEP_PACKAGED_MODULES), true)
   JLINK_JDK_EXTRA_OPTS := --keep-packaged-modules $(JDK_IMAGE_DIR)/jmods
 endif
 
-$(info $(JDK_IMAGE_DIR))
+$(info $(JLINK_TOOL))
 $(info $(JDK_MODULES_LIST))
 $(info $(JLINK_JDK_EXTRA_OPTS))
 
@@ -119,6 +119,7 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	ifeq ($(BUILD_CDS_ARCHIVE), true)
 		$(call LogWarn, Creating CDS archive for jre image)
 		$(JRE_IMAGE_DIR)/bin/java -Xshare:dump -Xmx128M -Xms128M $(LOG_INFO)
+	endif
 	$(TOUCH) $@
 
 TOOL_JRE_TARGETS := $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
