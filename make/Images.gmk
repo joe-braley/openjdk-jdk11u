@@ -91,6 +91,11 @@ endif
 $(info Log info...)
 $(info $(LOG_INFO))
 
+$(info build cds archive)
+$(info $(BUILD_CDS_ARCHIVE))
+$(info target)
+$(info $(OPENJDK_TARGET_OS))
+
 ifeq ($(BUILD_CDS_ARCHIVE), true)
 	ifeq ($(OPENJDK_TARGET_OS), windows)
 		CDS_ARCHIVE := bin/server/classes.jsa
