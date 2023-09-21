@@ -88,9 +88,8 @@ ifeq ($(JLINK_KEEP_PACKAGED_MODULES), true)
   JLINK_JDK_EXTRA_OPTS := --keep-packaged-modules $(JDK_IMAGE_DIR)/jmods
 endif
 
-$(info $(JLINK_TOOL))
-$(info $(JDK_MODULES_LIST))
-$(info $(JLINK_JDK_EXTRA_OPTS))
+$(info Log info...)
+$(info $(LOG_INFO))
 
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE)
@@ -108,6 +107,8 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 		else
       		CDS_ARCHIVE := lib/server/classes.jsa
       		CDS_NOCOOPS_ARCHIVE := lib/server/classes_nocoops.jsa
+		endif
+		$(info $(CDS_ARCHIVE))
 		$(call LogWarn, Creating CDS archive for jdk image)
 		$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
         -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
@@ -131,6 +132,7 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     	else
       		CDS_ARCHIVE := lib/server/classes.jsa
       		CDS_NOCOOPS_ARCHIVE := lib/server/classes_nocoops.jsa
+		endif
 		$(call LogWarn, Creating CDS archive for jdk image)
 		$(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
         -XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
