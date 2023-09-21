@@ -387,6 +387,11 @@ jrtfs-jar:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f JrtfsJar.gmk)
 
 jdk-image:
+	$(info creating jdk....)
+	$(info $(MAKE))
+	$(info make args....)
+	$(info $(MAKE_ARGS))
+	$(info executing...)
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Images.gmk jdk)
 
 legacy-jre-image:
