@@ -91,6 +91,19 @@ endif
 $(info Log info...)
 $(info $(LOG_INFO))
 
+ifeq ($(BUILD_CDS_ARCHIVE), true)
+	ifeq ($(OPENJDK_TARGET_OS), windows)
+		CDS_ARCHIVE := bin/server/classes.jsa
+		CDS_NOCOOPS_ARCHIVE := bin/server/classes_nocoops.jsa
+	else
+		CDS_ARCHIVE := lib/server/classes.jsa
+		CDS_NOCOOPS_ARCHIVE := lib/server/classes_nocoops.jsa
+	endif
+endif
+
+$(info CDS archive...)
+$(info $(CDS_ARCHIVE))
+
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE)
 	$(ECHO) Creating jdk image
@@ -100,23 +113,13 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        $(JLINK_JDK_EXTRA_OPTS) \
 	        --output $(JDK_IMAGE_DIR) \
 	)
-	$(TOUCH) $@
-
-ifeq ($(BUILD_CDS_ARCHIVE), true)
-	ifeq ($(OPENJDK_TARGET_OS), windows)
-		CDS_ARCHIVE := bin/server/classes.jsa
-      	CDS_NOCOOPS_ARCHIVE := bin/server/classes_nocoops.jsa
-	else
-		CDS_ARCHIVE := lib/server/classes.jsa
-      	CDS_NOCOOPS_ARCHIVE := lib/server/classes_nocoops.jsa
+	ifeq ($(BUILD_CDS_ARCHIVE), true)
+		$(call LogWarn, Creating CDS archive for jdk image)
+		$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
+        -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
+        -Xmx128M -Xms128M $(LOG_INFO), \
 	endif
-
-	$(info $(CDS_ARCHIVE))
-	$(call LogWarn, Creating CDS archive for jdk image)
-	$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
-       -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
-       -Xmx128M -Xms128M $(LOG_INFO), \
-endif
+	$(TOUCH) $@
 
 $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(call DependOnVariable, JRE_MODULES_LIST) $(BASE_RELEASE_FILE)
@@ -127,23 +130,13 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        $(JLINK_JRE_EXTRA_OPTS) \
 	        --output $(JRE_IMAGE_DIR) \
 	)
-	$(TOUCH) $@
-
-ifeq ($(BUILD_CDS_ARCHIVE), true)
-
-	ifeq ($(OPENJDK_TARGET_OS), windows)
-		CDS_ARCHIVE := bin/server/classes.jsa
-		CDS_NOCOOPS_ARCHIVE := bin/server/classes_nocoops.jsa
-	else
-		CDS_ARCHIVE := lib/server/classes.jsa
-		CDS_NOCOOPS_ARCHIVE := lib/server/classes_nocoops.jsa
+	ifeq ($(BUILD_CDS_ARCHIVE), true)
+		$(call LogWarn, Creating CDS archive for jdk image)
+		$(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
+        -XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
+        -Xmx128M -Xms128M $(LOG_INFO), \
 	endif
-
-	$(call LogWarn, Creating CDS archive for jdk image)
-	$(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
-	-XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
-	-Xmx128M -Xms128M $(LOG_INFO), \
-endif
+	$(TOUCH) $@
 
 TOOL_JRE_TARGETS := $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
 TOOL_JDK_TARGETS := $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
