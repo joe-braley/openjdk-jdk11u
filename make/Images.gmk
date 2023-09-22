@@ -113,14 +113,14 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        $(JLINK_JDK_EXTRA_OPTS) \
 	        --output $(JDK_IMAGE_DIR) \
 	)
-	ifeq ($(BUILD_CDS_ARCHIVE), true)
+    ifeq ($(BUILD_CDS_ARCHIVE), true)
 		$(info "this is a statement")
 #		$(call LogWarn, Creating CDS archive for jdk image)
 #		$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
 #		-XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
 #		-Xmx128M -Xms128M $(LOG_INFO)
 		$(info "this is a second statement")
-	endif
+    endif
 	$(TOUCH) $@
 
 $(info "this is after second statement")
