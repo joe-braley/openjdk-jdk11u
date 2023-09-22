@@ -98,12 +98,6 @@ ifeq ($(BUILD_CDS_ARCHIVE), true)
 	endif
 endif
 
-$(info build cds archive)
-$(info $(BUILD_CDS_ARCHIVE))
-$(info $(CDS_ARCHIVE))
-$(info Creating jdk image...)
-$(info $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE))
-
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE)
 	$(ECHO) Creating jdk image
@@ -114,7 +108,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        --output $(JDK_IMAGE_DIR) \
 	)
     ifeq ($(BUILD_CDS_ARCHIVE), true)
-		$(call LogWarn, Creating CDS archive for jdk image)
+		$(ECHO) Creating CDS archive for jdk image
 		$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
 		-XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
 		-Xmx128M -Xms128M $(LOG_INFO)
@@ -131,8 +125,8 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        $(JLINK_JRE_EXTRA_OPTS) \
 	        --output $(JRE_IMAGE_DIR) \
 	)
-    ifeq ($(BUILD_CDS_ARCHIVE) ,true)
-		$(call LogWarn, Creating CDS archive for jre image)
+    ifeq ($(BUILD_CDS_ARCHIVE), true)
+		$(ECHO) Creating CDS archive for jre image
 		$(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
 		-XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
 		-Xmx128M -Xms128M $(LOG_INFO)
