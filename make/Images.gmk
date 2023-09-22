@@ -135,7 +135,7 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        $(JLINK_JRE_EXTRA_OPTS) \
 	        --output $(JRE_IMAGE_DIR) \
 	)
-	ifeq ($(BUILD_CDS_ARCHIVE),true)
+	ifeq ($(BUILD_CDS_ARCHIVE) ,true)
 		$(call LogWarn, Creating CDS archive for jre image)
 		$(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
 		-XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
