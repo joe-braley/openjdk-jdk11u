@@ -122,7 +122,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 		$(call LogWarn, Creating CDS archive for jdk image)
 		$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
 		-XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
-		-Xmx128M -Xms128M $(LOG_INFO) \
+		-Xmx128M -Xms128M $(LOG_INFO)
 	endif
 	$(TOUCH) $@
 
@@ -139,7 +139,7 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 		$(call LogWarn, Creating CDS archive for jre image)
 		$(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
 		-XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
-		-Xmx128M -Xms128M $(LOG_INFO) \
+		-Xmx128M -Xms128M $(LOG_INFO)
 	endif
 	$(TOUCH) $@
 
