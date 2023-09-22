@@ -88,14 +88,6 @@ ifeq ($(JLINK_KEEP_PACKAGED_MODULES), true)
   JLINK_JDK_EXTRA_OPTS := --keep-packaged-modules $(JDK_IMAGE_DIR)/jmods
 endif
 
-$(info Log info...)
-$(info $(LOG_INFO))
-
-$(info build cds archive)
-$(info $(BUILD_CDS_ARCHIVE))
-$(info target)
-$(info $(OPENJDK_TARGET_OS))
-
 ifeq ($(BUILD_CDS_ARCHIVE), true)
 	ifeq ($(OPENJDK_TARGET_OS), windows)
 		CDS_ARCHIVE := bin/server/classes.jsa
@@ -106,6 +98,9 @@ ifeq ($(BUILD_CDS_ARCHIVE), true)
 	endif
 endif
 
+$(info build cds archive)
+$(info $(BUILD_CDS_ARCHIVE))
+$(info $(CDS_ARCHIVE)
 $(info Creating jdk image...)
 $(info $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE))
 
