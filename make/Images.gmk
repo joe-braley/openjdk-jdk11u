@@ -113,7 +113,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        $(JLINK_JDK_EXTRA_OPTS) \
 	        --output $(JDK_IMAGE_DIR) \
 	)
-	ifeq ($(BUILD_CDS_ARCHIVE),true)
+	ifeq ($(BUILD_CDS_ARCHIVE), true)
 		$(info "this is a statement")
 #		$(call LogWarn, Creating CDS archive for jdk image)
 #		$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
