@@ -100,7 +100,7 @@ endif
 
 $(info build cds archive)
 $(info $(BUILD_CDS_ARCHIVE))
-$(info $(CDS_ARCHIVE)
+$(info $(CDS_ARCHIVE))
 $(info Creating jdk image...)
 $(info $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE))
 
@@ -119,8 +119,11 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 #		$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
 #		-XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
 #		-Xmx128M -Xms128M $(LOG_INFO)
+		$(info "this is a second statement")
 	endif
 	$(TOUCH) $@
+
+$(info "this is after second statement")
 
 $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(call DependOnVariable, JRE_MODULES_LIST) $(BASE_RELEASE_FILE)
