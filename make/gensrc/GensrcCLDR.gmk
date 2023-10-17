@@ -40,7 +40,9 @@ TZDATA_DIR := $(TOPDIR)/make/data/tzdata
 # tzmappings generation for Windows.
 # Since the rule is shared with CLDR_BASEMETAINFO_FILE target, note that
 # just removing the target tzmappings will not recreate the tzmappings file.
+$(call LogInfo, GENSRC_DIR IS: $(GENSRC_DIR))
 $(call LogInfo, OpenJDK target OS is: $(OPENJDK_TARGET_OS))
+$(call LogInfo, ATTEMPTING TO CREATE TZDATA NOW)
 ifeq ($(OPENJDK_TARGET_OS), windows)
   CLDR_WINTZMAPPINGS := $(GENSRC_BASEDIR)/windows/conf/tzmappings
   $(CLDR_WINTZMAPPINGS): $(CLDR_BASEMETAINFO_FILE)
@@ -68,5 +70,6 @@ $(CLDR_METAINFO_FILE): $(wildcard $(CLDRSRCDIR)/dtd/*.dtd) \
 	    -baselocales $(CLDR_BASE_LOCALES) \
 	    -o $(GENSRC_DIR)
 
+$(call LogInfo, CLDR_WINTZMAPPINGS IS SET TO $(CLDR_WINTZMAPPINGS))
 GENSRC_JAVA_BASE += $(CLDR_BASEMETAINFO_FILE) $(CLDR_WINTZMAPPINGS)
 GENSRC_JDK_LOCALEDATA += $(CLDR_METAINFO_FILE)
