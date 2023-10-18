@@ -98,6 +98,7 @@ ifeq ($(BUILD_CDS_ARCHIVE), true)
 	endif
 endif
 
+
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
   $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE)
 	$(ECHO) Creating jdk image
@@ -108,14 +109,15 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        --output $(JDK_IMAGE_DIR) \
 	)
     ifeq ($(BUILD_CDS_ARCHIVE), true)
-		$(ECHO) Creating CDS archive for jdk image
-    $(ECHO) Executing ... $(JDK_IMAGE_DIR)/bin/java -Xshare:dump -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M $(LOG_INFO)
+		$(ECHO) Executing ... $(JDK_IMAGE_DIR)/bin/java -Xshare:dump -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M $(LOG_INFO)
+
 
 		$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
 		-XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
 		-Xmx128M -Xms128M $(LOG_INFO)
     endif
 	$(TOUCH) $@
+
 
 
 $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
@@ -128,8 +130,8 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        --output $(JRE_IMAGE_DIR) \
 	)
     ifeq ($(BUILD_CDS_ARCHIVE), true)
-		$(ECHO) Creating CDS archive for jre image
     $(ECHO) Executing ... $(JRE_IMAGE_DIR)/bin/java -Xshare:dump -XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M $(LOG_INFO)
+
 
 		$(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
 		-XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
