@@ -109,8 +109,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        --output $(JDK_IMAGE_DIR) \
 	)
     ifeq ($(BUILD_CDS_ARCHIVE), true)
-		$(ECHO) Executing ... $(JDK_IMAGE_DIR)/bin/java -Xshare:dump -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M $(LOG_INFO)
-
+		$(ECHO) "Executing ... $(JDK_IMAGE_DIR)/bin/java -Xshare:dump -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M $(LOG_INFO)"
 
 		$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
 		-XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
@@ -130,8 +129,7 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        --output $(JRE_IMAGE_DIR) \
 	)
     ifeq ($(BUILD_CDS_ARCHIVE), true)
-    $(ECHO) Executing ... $(JRE_IMAGE_DIR)/bin/java -Xshare:dump -XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M $(LOG_INFO)
-
+    $(ECHO) "Executing ... $(JRE_IMAGE_DIR)/bin/java -Xshare:dump -XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M $(LOG_INFO)"
 
 		$(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
 		-XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
