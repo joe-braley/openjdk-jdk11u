@@ -88,11 +88,9 @@ ifeq ($(BUILD_CDS_ARCHIVE), true)
 		ifeq ($(OPENJDK_TARGET_OS), windows)
 				CDS_ARCHIVE := bin/server/classes.jsa
 				CDS_NOCOOPS_ARCHIVE := bin/server/classes_nocoops.jsa
-				$(info OS is Windows, setting CDS_ARCHIVE to $(CDS_ARCHIVE))
 		else
 				CDS_ARCHIVE := lib/server/classes.jsa
 				CDS_NOCOOPS_ARCHIVE := lib/server/classes_nocoops.jsa
-				$(info OS is not Windows, setting CDS_ARCHIVE to $(CDS_ARCHIVE))
 		endif
 endif
 
