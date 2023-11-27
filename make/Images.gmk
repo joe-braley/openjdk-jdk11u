@@ -97,7 +97,7 @@ ifeq ($(BUILD_CDS_ARCHIVE), true)
 endif
 
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
-  $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE)
+  $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE) \
     $(info Creating JDK image in $(JDK_IMAGE_DIR)) \
     $(RM) -r $(JDK_IMAGE_DIR)
     $(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jdk, \
@@ -106,7 +106,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
             --output $(JDK_IMAGE_DIR) \
     )
     ifeq ($(BUILD_CDS_ARCHIVE), true)
-        $(info Dumping shared archive to $(JDK_IMAGE_DIR)/$(CDS_ARCHIVE))
+        $(info Dumping shared archive to $(JDK_IMAGE_DIR)/$(CDS_ARCHIVE)) \
         $(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
         -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
         -Xmx128M -Xms128M $(LOG_INFO)
@@ -114,7 +114,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(TOUCH) $@
 
 $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
-  $(call DependOnVariable, JRE_MODULES_LIST) $(BASE_RELEASE_FILE)
+  $(call DependOnVariable, JRE_MODULES_LIST) $(BASE_RELEASE_FILE) \
     $(info Creating legacy JRE image in $(JRE_IMAGE_DIR)) \
     $(RM) -r $(JRE_IMAGE_DIR)
     $(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jre, \
