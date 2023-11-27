@@ -109,7 +109,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(info Build CDS archive? $(BUILD_CDS_ARCHIVE))
     ifeq ($(BUILD_CDS_ARCHIVE), true)
       # $(JDK_IMAGE_DIR)/bin/java -Xshare:dump -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M $(LOG_INFO)
-      $(ECHO) "Debug Would run $(JDK_IMAGE_DIR)/bin/java -Xshare-dump -XX-SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M"
+      $(info Debug Would run $(JDK_IMAGE_DIR)/bin/java -Xshare-dump -XX-SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M)
     endif
     $(TOUCH) $@
 
