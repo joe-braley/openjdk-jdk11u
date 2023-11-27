@@ -98,7 +98,7 @@ endif
 
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
   $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE)
-    $(info Creating JDK image in $(JDK_IMAGE_DIR))
+    $(info Creating JDK image in $(JDK_IMAGE_DIR)) \
     $(RM) -r $(JDK_IMAGE_DIR)
     $(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jdk, \
         $(JLINK_TOOL) --add-modules $(JDK_MODULES_LIST) \
@@ -115,7 +115,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 
 $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
   $(call DependOnVariable, JRE_MODULES_LIST) $(BASE_RELEASE_FILE)
-    $(info Creating legacy JRE image in $(JRE_IMAGE_DIR))
+    $(info Creating legacy JRE image in $(JRE_IMAGE_DIR)) \
     $(RM) -r $(JRE_IMAGE_DIR)
     $(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jre, \
         $(JLINK_TOOL) --add-modules $(JRE_MODULES_LIST) \
@@ -123,7 +123,7 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
             --output $(JRE_IMAGE_DIR) \
     )
     ifeq ($(BUILD_CDS_ARCHIVE), true)
-        $(info Dumping shared archive to $(JRE_IMAGE_DIR)/$(CDS_ARCHIVE))
+        $(info Dumping shared archive to $(JRE_IMAGE_DIR)/$(CDS_ARCHIVE)) \
         $(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
         -XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
         -Xmx128M -Xms128M $(LOG_INFO)
