@@ -96,6 +96,7 @@ ifeq ($(BUILD_CDS_ARCHIVE), true)
     endif
 endif
 
+
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
   $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE) \
     $(info Creating JDK image in $(JDK_IMAGE_DIR)) \
