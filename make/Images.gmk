@@ -99,7 +99,7 @@ endif
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
   $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE) \
     $(info Creating JDK image in $(JDK_IMAGE_DIR)) \
-    $(RM) -r $(JDK_IMAGE_DIR)
+    $(RM) -r $(JDK_IMAGE_DIR) \
     $(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jdk, \
         $(JLINK_TOOL) --add-modules $(JDK_MODULES_LIST) \
             $(JLINK_JDK_EXTRA_OPTS) \
