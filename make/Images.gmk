@@ -105,8 +105,8 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
             $(JLINK_JDK_EXTRA_OPTS) \
             --output $(JDK_IMAGE_DIR) \
     )
-    $(info Dumping shared archive to $(JDK_IMAGE_DIR)/$(CDS_ARCHIVE))
-    $(info Build CDS archive? $(BUILD_CDS_ARCHIVE))
+    $(info Dumping shared archive to $(JDK_IMAGE_DIR)/$(CDS_ARCHIVE)) \
+    $(info Build CDS archive? $(BUILD_CDS_ARCHIVE)) \
     ifeq ($(BUILD_CDS_ARCHIVE), true)
       $(ECHO) "Debug Would run $(JDK_IMAGE_DIR)/bin/java -Xshare-dump -XX-SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M" \
       # $(JDK_IMAGE_DIR)/bin/java -Xshare:dump -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) -Xmx128M -Xms128M $(LOG_INFO)
