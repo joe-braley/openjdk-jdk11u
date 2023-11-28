@@ -112,7 +112,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     ifeq ($(BUILD_CDS_ARCHIVE), true)
       # $(info Executing $(JDK_IMAGE_DIR)/bin/java -Xshare:dump -Xmx128M -Xms128M $(LOG_INFO))
 		  $(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
-		  -Xmx128M -Xms128M $(LOG_INFO)
+		  -Xmx128M -Xms128M
     endif
 	$(TOUCH) $@
 
@@ -131,7 +131,7 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
       # $(info Creating CDS Archive...)
       # $(info Executing $(JRE_IMAGE_DIR)/bin/java -Xshare:dump -Xmx128M -Xms128M $(LOG_INFO))
 		  $(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
-		  -Xmx128M -Xms128M $(LOG_INFO)
+		  -Xmx128M -Xms128M
     endif
 	$(TOUCH) $@
 
