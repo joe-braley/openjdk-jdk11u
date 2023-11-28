@@ -281,12 +281,12 @@ AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_CDS],
   fi
 
   # Disable CDS on macos-aarch64
-  if test "x$OPENJDK_TARGET_OS" = "xmacosx" && test "x$OPENJDK_TARGET_CPU" = "xaarch64"; then
-    ENABLE_CDS="false"
-    if test "x$enable_cds" = "xyes"; then
-      AC_MSG_ERROR([CDS is currently not supported on macOS/aarch64. Remove --enable-cds.])
-    fi
-  fi
+#  if test "x$OPENJDK_TARGET_OS" = "xmacosx" && test "x$OPENJDK_TARGET_CPU" = "xaarch64"; then
+#    ENABLE_CDS="false"
+#    if test "x$enable_cds" = "xyes"; then
+#      AC_MSG_ERROR([CDS is currently not supported on macOS/aarch64. Remove --enable-cds.])
+#    fi
+#  fi
 
   AC_SUBST(ENABLE_CDS)
 ])
