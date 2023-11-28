@@ -108,9 +108,10 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        $(JLINK_JDK_EXTRA_OPTS) \
 	        --output $(JDK_IMAGE_DIR) \
 	)
+    $(info Creating CDS Archive...)
     ifeq ($(BUILD_CDS_ARCHIVE), true)
+      $(info Executing $(JDK_IMAGE_DIR)/bin/java -Xshare:dump -Xmx128M -Xms128M $(LOG_INFO))
 		  $(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
-		  -XX:SharedArchiveFile=$(JDK_IMAGE_DIR)/$(CDS_ARCHIVE) \
 		  -Xmx128M -Xms128M $(LOG_INFO)
     endif
 	$(TOUCH) $@
@@ -127,8 +128,9 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        --output $(JRE_IMAGE_DIR) \
 	)
     ifeq ($(BUILD_CDS_ARCHIVE), true)
+      $(info Creating CDS Archive...)
+      $(info Executing $(JRE_IMAGE_DIR)/bin/java -Xshare:dump -Xmx128M -Xms128M $(LOG_INFO))
 		  $(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
-		  -XX:SharedArchiveFile=$(JRE_IMAGE_DIR)/$(CDS_ARCHIVE) \
 		  -Xmx128M -Xms128M $(LOG_INFO)
     endif
 	$(TOUCH) $@
