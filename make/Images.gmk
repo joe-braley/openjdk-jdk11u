@@ -88,49 +88,33 @@ ifeq ($(JLINK_KEEP_PACKAGED_MODULES), true)
   JLINK_JDK_EXTRA_OPTS := --keep-packaged-modules $(JDK_IMAGE_DIR)/jmods
 endif
 
-ifeq ($(BUILD_CDS_ARCHIVE), true)
-	ifeq ($(OPENJDK_TARGET_OS), windows)
-		CDS_ARCHIVE := bin/server/classes.jsa
-		CDS_NOCOOPS_ARCHIVE := bin/server/classes_nocoops.jsa
-	else
-		CDS_ARCHIVE := lib/server/classes.jsa
-		CDS_NOCOOPS_ARCHIVE := lib/server/classes_nocoops.jsa
-	endif
-endif
-
-
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
   $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE)
-	$(ECHO) Creating jdk image
-	$(RM) -r $(JDK_IMAGE_DIR)
-	$(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jdk, \
-	    $(JLINK_TOOL) --add-modules $(JDK_MODULES_LIST) \
-	        $(JLINK_JDK_EXTRA_OPTS) \
-	        --output $(JDK_IMAGE_DIR) \
-	)
+		$(ECHO) Creating jdk image
+		$(RM) -r $(JDK_IMAGE_DIR)
+		$(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jdk, \
+				$(JLINK_TOOL) --add-modules $(JDK_MODULES_LIST) \
+						$(JLINK_JDK_EXTRA_OPTS) \
+						--output $(JDK_IMAGE_DIR) \
+		)
 		ifeq ($(BUILD_CDS_ARCHIVE), true)
 			$(JDK_IMAGE_DIR)/bin/java -Xshare:dump -Xmx128M -Xms128M
 		endif
 		$(TOUCH) $@
 
-
-
 $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
   $(call DependOnVariable, JRE_MODULES_LIST) $(BASE_RELEASE_FILE)
-	$(ECHO) Creating legacy jre image
-	$(RM) -r $(JRE_IMAGE_DIR)
-	$(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jre, \
-	    $(JLINK_TOOL) --add-modules $(JRE_MODULES_LIST) \
-	        $(JLINK_JRE_EXTRA_OPTS) \
-	        --output $(JRE_IMAGE_DIR) \
-	)
-    ifeq ($(BUILD_CDS_ARCHIVE), true)
-      # $(info Creating CDS Archive...)
-      # $(info Executing $(JRE_IMAGE_DIR)/bin/java -Xshare:dump -Xmx128M -Xms128M $(LOG_INFO))
-		  $(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
-		  -Xmx128M -Xms128M
-    endif
-	$(TOUCH) $@
+		$(ECHO) Creating legacy jre image
+		$(RM) -r $(JRE_IMAGE_DIR)
+		$(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jre, \
+				$(JLINK_TOOL) --add-modules $(JRE_MODULES_LIST) \
+						$(JLINK_JRE_EXTRA_OPTS) \
+						--output $(JRE_IMAGE_DIR) \
+		)
+		ifeq ($(BUILD_CDS_ARCHIVE), true)
+			$(JRE_IMAGE_DIR)/bin/java -Xshare:dump -Xmx128M -Xms128M
+		endif
+		$(TOUCH) $@
 
 TOOL_JRE_TARGETS := $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
 TOOL_JDK_TARGETS := $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
