@@ -108,7 +108,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	        $(JLINK_JDK_EXTRA_OPTS) \
 	        --output $(JDK_IMAGE_DIR) \
 	)
-    $(info Creating CDS Archive)
+  $(info Creating CDS Archive)
     ifeq ($(BUILD_CDS_ARCHIVE), true)
       # $(info Executing $(JDK_IMAGE_DIR)/bin/java -Xshare:dump -Xmx128M -Xms128M $(LOG_INFO))
 		  $(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
