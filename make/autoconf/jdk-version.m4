@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -24,871 +24,544 @@
 #
 
 ###############################################################################
-# Check which variant of the JDK that we want to build.
-# Currently we have:
-#    normal:   standard edition
-# but the custom make system may add other variants
 #
-# Effectively the JDK variant gives a name to a specific set of
-# modules to compile into the JDK.
-AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_VARIANT],
-[
-  AC_MSG_CHECKING([which variant of the JDK to build])
-  AC_ARG_WITH([jdk-variant], [AS_HELP_STRING([--with-jdk-variant],
-      [JDK variant to build (normal) @<:@normal@:>@])])
+# Setup version numbers
+#
 
-  if test "x$with_jdk_variant" = xnormal || test "x$with_jdk_variant" = x; then
-    JDK_VARIANT="normal"
-  else
-    AC_MSG_ERROR([The available JDK variants are: normal])
+# Verify that a given string represents a valid version number, and assign it
+# to a variable.
+
+# Argument 1: the variable to assign to
+# Argument 2: the value given by the user
+AC_DEFUN([JDKVER_CHECK_AND_SET_NUMBER],
+[
+  # Additional [] needed to keep m4 from mangling shell constructs.
+  if [ ! [[ "$2" =~ ^0*([1-9][0-9]*)$|^0*(0)$ ]] ] ; then
+    AC_MSG_ERROR(["$2" is not a valid numerical value for $1])
+  fi
+  # Extract the version number without leading zeros.
+  cleaned_value=${BASH_REMATCH[[1]]}
+  if test "x$cleaned_value" = x; then
+    # Special case for zero
+    cleaned_value=${BASH_REMATCH[[2]]}
   fi
 
-  AC_SUBST(JDK_VARIANT)
-
-  AC_MSG_RESULT([$JDK_VARIANT])
+  if test $cleaned_value -gt 255; then
+    AC_MSG_ERROR([$1 is given as $2. This is greater than 255 which is not allowed.])
+  fi
+  if test "x$cleaned_value" != "x$2"; then
+    AC_MSG_WARN([Value for $1 has been sanitized from '$2' to '$cleaned_value'])
+  fi
+  $1=$cleaned_value
 ])
 
-###############################################################################
-# Set the debug level
-#    release: no debug information, all optimizations, no asserts.
-#    optimized: no debug information, all optimizations, no asserts, HotSpot target is 'optimized'.
-#    fastdebug: debug information (-g), all optimizations, all asserts
-#    slowdebug: debug information (-g), no optimizations, all asserts
-AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_LEVEL],
+AC_DEFUN_ONCE([JDKVER_SETUP_JDK_VERSION_NUMBERS],
 [
-  DEBUG_LEVEL="release"
-  AC_MSG_CHECKING([which debug level to use])
-  AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],
-      [set the debug level to fastdebug (shorthand for --with-debug-level=fastdebug) @<:@disabled@:>@])],
-      [
-        ENABLE_DEBUG="${enableval}"
-        DEBUG_LEVEL="fastdebug"
-      ], [ENABLE_DEBUG="no"])
+  # Warn user that old version arguments are deprecated.
+  UTIL_DEPRECATED_ARG_WITH([milestone])
+  UTIL_DEPRECATED_ARG_WITH([update-version])
+  UTIL_DEPRECATED_ARG_WITH([user-release-suffix])
+  UTIL_DEPRECATED_ARG_WITH([build-number])
+  UTIL_DEPRECATED_ARG_WITH([version-major])
+  UTIL_DEPRECATED_ARG_WITH([version-minor])
+  UTIL_DEPRECATED_ARG_WITH([version-security])
 
-  AC_ARG_WITH([debug-level], [AS_HELP_STRING([--with-debug-level],
-      [set the debug level (release, fastdebug, slowdebug, optimized) @<:@release@:>@])],
-      [
-        DEBUG_LEVEL="${withval}"
-        if test "x$ENABLE_DEBUG" = xyes; then
-          AC_MSG_ERROR([You cannot use both --enable-debug and --with-debug-level at the same time.])
-        fi
-      ])
-  AC_MSG_RESULT([$DEBUG_LEVEL])
+  # Source the version numbers file
+  . $AUTOCONF_DIR/version-numbers
 
-  if test "x$DEBUG_LEVEL" != xrelease && \
-      test "x$DEBUG_LEVEL" != xoptimized && \
-      test "x$DEBUG_LEVEL" != xfastdebug && \
-      test "x$DEBUG_LEVEL" != xslowdebug; then
-    AC_MSG_ERROR([Allowed debug levels are: release, fastdebug, slowdebug and optimized])
-  fi
+  # Some non-version number information is set in that file
+  AC_SUBST(LAUNCHER_NAME)
+  AC_SUBST(PRODUCT_NAME)
+  AC_SUBST(PRODUCT_SUFFIX)
+  AC_SUBST(JDK_RC_PLATFORM_NAME)
+  AC_SUBST(HOTSPOT_VM_DISTRO)
 
-  # Translate DEBUG_LEVEL to debug level used by Hotspot
-  HOTSPOT_DEBUG_LEVEL="$DEBUG_LEVEL"
-  if test "x$DEBUG_LEVEL" = xrelease; then
-    HOTSPOT_DEBUG_LEVEL="product"
-  elif test "x$DEBUG_LEVEL" = xslowdebug; then
-    HOTSPOT_DEBUG_LEVEL="debug"
-  fi
-
-  if test "x$DEBUG_LEVEL" = xoptimized; then
-    # The debug level 'optimized' is a little special because it is currently only
-    # applicable to the HotSpot build where it means to build a completely
-    # optimized version of the VM without any debugging code (like for the
-    # 'release' debug level which is called 'product' in the HotSpot build) but
-    # with the exception that it can contain additional code which is otherwise
-    # protected by '#ifndef PRODUCT' macros. These 'optimized' builds are used to
-    # test new and/or experimental features which are not intended for customer
-    # shipment. Because these new features need to be tested and benchmarked in
-    # real world scenarios, we want to build the containing JDK at the 'release'
-    # debug level.
-    DEBUG_LEVEL="release"
-  fi
-
-  AC_SUBST(HOTSPOT_DEBUG_LEVEL)
-  AC_SUBST(DEBUG_LEVEL)
-])
-
-###############################################################################
-#
-# Should we build only OpenJDK even if closed sources are present?
-#
-AC_DEFUN_ONCE([JDKOPT_SETUP_OPEN_OR_CUSTOM],
-[
-  AC_ARG_ENABLE([openjdk-only], [AS_HELP_STRING([--enable-openjdk-only],
-      [suppress building custom source even if present @<:@disabled@:>@])],,[enable_openjdk_only="no"])
-
-  AC_MSG_CHECKING([if custom source is suppressed (openjdk-only)])
-  AC_MSG_RESULT([$enable_openjdk_only])
-  if test "x$enable_openjdk_only" = "xyes"; then
-    SUPPRESS_CUSTOM_EXTENSIONS="true"
-  elif test "x$enable_openjdk_only" = "xno"; then
-    SUPPRESS_CUSTOM_EXTENSIONS="false"
+  # Set the JDK RC name
+  AC_ARG_WITH(jdk-rc-name, [AS_HELP_STRING([--with-jdk-rc-name],
+      [Set JDK RC name. This is used for FileDescription and ProductName properties
+       of MS Windows binaries. @<:@not specified@:>@])])
+  if test "x$with_jdk_rc_name" = xyes; then
+    AC_MSG_ERROR([--with-jdk-rc-name must have a value])
+  elif [ ! [[ $with_jdk_rc_name =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-jdk-rc-name contains non-printing characters: $with_jdk_rc_name])
+  elif test "x$with_jdk_rc_name" != x; then
+    # Set JDK_RC_NAME to a custom value if '--with-jdk-rc-name' was used and is not empty.
+    JDK_RC_NAME="$with_jdk_rc_name"
   else
-    AC_MSG_ERROR([Invalid value for --enable-openjdk-only: $enable_openjdk_only])
+    # Otherwise calculate from "version-numbers" included above.
+    JDK_RC_NAME="$PRODUCT_NAME $JDK_RC_PLATFORM_NAME"
   fi
+  AC_SUBST(JDK_RC_NAME)
 
-  # custom-make-dir is deprecated. Please use your custom-hook.m4 to override
-  # the IncludeCustomExtension macro.
-  UTIL_DEPRECATED_ARG_WITH(custom-make-dir)
-])
-
-AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
-[
-  # Should we build a JDK without a graphical UI?
-  AC_MSG_CHECKING([headless only])
-  AC_ARG_ENABLE([headless-only], [AS_HELP_STRING([--enable-headless-only],
-      [only build headless (no GUI) support @<:@disabled@:>@])])
-
-  if test "x$enable_headless_only" = "xyes"; then
-    ENABLE_HEADLESS_ONLY="true"
-    AC_MSG_RESULT([yes])
-  elif test "x$enable_headless_only" = "xno"; then
-    ENABLE_HEADLESS_ONLY="false"
-    AC_MSG_RESULT([no])
-  elif test "x$enable_headless_only" = "x"; then
-    ENABLE_HEADLESS_ONLY="false"
-    AC_MSG_RESULT([no])
-  else
-    AC_MSG_ERROR([--enable-headless-only can only take yes or no])
+  # The vendor name, if any
+  AC_ARG_WITH(vendor-name, [AS_HELP_STRING([--with-vendor-name],
+      [Set vendor name. Among others, used to set the 'java.vendor'
+       and 'java.vm.vendor' system properties. @<:@not specified@:>@])])
+  if test "x$with_vendor_name" = xyes; then
+    AC_MSG_ERROR([--with-vendor-name must have a value])
+  elif [ ! [[ $with_vendor_name =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-vendor-name contains non-printing characters: $with_vendor_name])
+  elif test "x$with_vendor_name" != x; then
+    # Only set COMPANY_NAME if '--with-vendor-name' was used and is not empty.
+    # Otherwise we will use the value from "version-numbers" included above.
+    COMPANY_NAME="$with_vendor_name"
   fi
+  AC_SUBST(COMPANY_NAME)
 
-  AC_SUBST(ENABLE_HEADLESS_ONLY)
-
-  # Should we build the complete docs, or just a lightweight version?
-  AC_ARG_ENABLE([full-docs], [AS_HELP_STRING([--enable-full-docs],
-      [build complete documentation @<:@enabled if all tools found@:>@])])
-
-  # Verify dependencies
-  AC_MSG_CHECKING([for graphviz dot])
-  if test "x$DOT" != "x"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, cannot generate full docs])
-    FULL_DOCS_DEP_MISSING=true
+  # The vendor URL, if any
+  AC_ARG_WITH(vendor-url, [AS_HELP_STRING([--with-vendor-url],
+      [Set the 'java.vendor.url' system property @<:@not specified@:>@])])
+  if test "x$with_vendor_url" = xyes; then
+    AC_MSG_ERROR([--with-vendor-url must have a value])
+  elif [ ! [[ $with_vendor_url =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-vendor-url contains non-printing characters: $with_vendor_url])
+  elif test "x$with_vendor_url" != x; then
+    # Only set VENDOR_URL if '--with-vendor-url' was used and is not empty.
+    # Otherwise we will use the value from "version-numbers" included above.
+    VENDOR_URL="$with_vendor_url"
   fi
+  AC_SUBST(VENDOR_URL)
 
-  AC_MSG_CHECKING([for pandoc])
-  if test "x$PANDOC" != "x"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, cannot generate full docs])
-    FULL_DOCS_DEP_MISSING=true
+  # The vendor bug URL, if any
+  AC_ARG_WITH(vendor-bug-url, [AS_HELP_STRING([--with-vendor-bug-url],
+      [Set the 'java.vendor.url.bug' system property @<:@not specified@:>@])])
+  if test "x$with_vendor_bug_url" = xyes; then
+    AC_MSG_ERROR([--with-vendor-bug-url must have a value])
+  elif [ ! [[ $with_vendor_bug_url =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-vendor-bug-url contains non-printing characters: $with_vendor_bug_url])
+  elif test "x$with_vendor_bug_url" != x; then
+    # Only set VENDOR_URL_BUG if '--with-vendor-bug-url' was used and is not empty.
+    # Otherwise we will use the value from "version-numbers" included above.
+    VENDOR_URL_BUG="$with_vendor_bug_url"
   fi
+  AC_SUBST(VENDOR_URL_BUG)
 
-  AC_MSG_CHECKING([full docs])
-  if test "x$enable_full_docs" = xyes; then
-    if test "x$FULL_DOCS_DEP_MISSING" = "xtrue"; then
-      AC_MSG_RESULT([no, missing dependencies])
-      HELP_MSG_MISSING_DEPENDENCY([dot])
-      AC_MSG_ERROR([Cannot enable full docs with missing dependencies. See above. $HELP_MSG])
-    else
-      ENABLE_FULL_DOCS=true
-      AC_MSG_RESULT([yes, forced])
-    fi
-  elif test "x$enable_full_docs" = xno; then
-    ENABLE_FULL_DOCS=false
-    AC_MSG_RESULT([no, forced])
-  elif test "x$enable_full_docs" = x; then
-    # Check for prerequisites
-    if test "x$FULL_DOCS_DEP_MISSING" = xtrue; then
-      ENABLE_FULL_DOCS=false
-      AC_MSG_RESULT([no, missing dependencies])
-    else
-      ENABLE_FULL_DOCS=true
-      AC_MSG_RESULT([yes, dependencies present])
-    fi
-  else
-    AC_MSG_ERROR([--enable-full-docs can only take yes or no])
+  # The vendor VM bug URL, if any
+  AC_ARG_WITH(vendor-vm-bug-url, [AS_HELP_STRING([--with-vendor-vm-bug-url],
+      [Sets the bug URL which will be displayed when the VM crashes @<:@not specified@:>@])])
+  if test "x$with_vendor_vm_bug_url" = xyes; then
+    AC_MSG_ERROR([--with-vendor-vm-bug-url must have a value])
+  elif [ ! [[ $with_vendor_vm_bug_url =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-vendor-vm-bug-url contains non-printing characters: $with_vendor_vm_bug_url])
+  elif test "x$with_vendor_vm_bug_url" != x; then
+    # Only set VENDOR_URL_VM_BUG if '--with-vendor-vm-bug-url' was used and is not empty.
+    # Otherwise we will use the value from "version-numbers" included above.
+    VENDOR_URL_VM_BUG="$with_vendor_vm_bug_url"
   fi
+  AC_SUBST(VENDOR_URL_VM_BUG)
 
-  AC_SUBST(ENABLE_FULL_DOCS)
+  # Override version from arguments
 
-  # Choose cacerts source file
-  AC_ARG_WITH(cacerts-file, [AS_HELP_STRING([--with-cacerts-file],
-      [specify alternative cacerts file])])
-  AC_MSG_CHECKING([for cacerts file])
-  if test "x$with_cacerts_file" == x; then
-    AC_MSG_RESULT([default])
-  else
-    CACERTS_FILE=$with_cacerts_file
-    if test ! -f "$CACERTS_FILE"; then
-      AC_MSG_RESULT([fail])
-      AC_MSG_ERROR([Specified cacerts file "$CACERTS_FILE" does not exist])
-    fi
-    AC_MSG_RESULT([$CACERTS_FILE])
-  fi
-  AC_SUBST(CACERTS_FILE)
-
-  # Enable or disable unlimited crypto
-  AC_ARG_ENABLE(unlimited-crypto, [AS_HELP_STRING([--disable-unlimited-crypto],
-      [Disable unlimited crypto policy @<:@enabled@:>@])],,
-      [enable_unlimited_crypto=yes])
-  if test "x$enable_unlimited_crypto" = "xyes"; then
-    UNLIMITED_CRYPTO=true
-  else
-    UNLIMITED_CRYPTO=false
-  fi
-  AC_SUBST(UNLIMITED_CRYPTO)
-
-  # Should we build the serviceability agent (SA)?
-  INCLUDE_SA=true
-  if HOTSPOT_CHECK_JVM_VARIANT(zero); then
-    INCLUDE_SA=false
-  fi
-  if test "x$OPENJDK_TARGET_OS" = xaix ; then
-    INCLUDE_SA=false
-  fi
-  if test "x$OPENJDK_TARGET_CPU" = xs390x ; then
-    INCLUDE_SA=false
-  fi
-  AC_SUBST(INCLUDE_SA)
-
-  # Compress jars
-  COMPRESS_JARS=false
-
-  AC_SUBST(COMPRESS_JARS)
-
-  # Setup default copyright year. Mostly overridden when building close to a new year.
-  AC_ARG_WITH(copyright-year, [AS_HELP_STRING([--with-copyright-year],
-      [Set copyright year value for build @<:@current year@:>@])])
-  if test "x$with_copyright_year" = xyes; then
-    AC_MSG_ERROR([Copyright year must have a value])
-  elif test "x$with_copyright_year" != x; then
-    COPYRIGHT_YEAR="$with_copyright_year"
-  else
-    COPYRIGHT_YEAR=`$DATE +'%Y'`
-  fi
-  AC_SUBST(COPYRIGHT_YEAR)
-])
-
-###############################################################################
-#
-# Enable or disable the elliptic curve crypto implementation
-#
-AC_DEFUN_ONCE([JDKOPT_DETECT_INTREE_EC],
-[
-  AC_MSG_CHECKING([if elliptic curve crypto implementation is present])
-
-  if test -d "${TOPDIR}/src/jdk.crypto.ec/share/native/libsunec/impl"; then
-    ENABLE_INTREE_EC=true
-    AC_MSG_RESULT([yes])
-  else
-    ENABLE_INTREE_EC=false
-    AC_MSG_RESULT([no])
-  fi
-
-  AC_SUBST(ENABLE_INTREE_EC)
-])
-
-AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
-[
-  #
-  # Native debug symbols.
-  # This must be done after the toolchain is setup, since we're looking at objcopy.
-  #
-  AC_MSG_CHECKING([what type of native debug symbols to use])
-  AC_ARG_WITH([native-debug-symbols],
-      [AS_HELP_STRING([--with-native-debug-symbols],
-      [set the native debug symbol configuration (none, internal, external, zipped) @<:@varying@:>@])],
-      [
-        if test "x$OPENJDK_TARGET_OS" = xwindows; then
-          if test "x$withval" = xinternal; then
-            AC_MSG_ERROR([Windows does not support the parameter 'internal' for --with-native-debug-symbols])
-          fi
-        fi
-      ],
-      [
-        if test "x$STATIC_BUILD" = xtrue; then
-          with_native_debug_symbols="none"
-        else
-          with_native_debug_symbols="external"
-        fi
-      ])
-  AC_MSG_RESULT([$with_native_debug_symbols])
-
-  if test "x$with_native_debug_symbols" = xnone; then
-    COMPILE_WITH_DEBUG_SYMBOLS=false
-    COPY_DEBUG_SYMBOLS=false
-    ZIP_EXTERNAL_DEBUG_SYMBOLS=false
-  elif test "x$with_native_debug_symbols" = xinternal; then
-    COMPILE_WITH_DEBUG_SYMBOLS=true
-    COPY_DEBUG_SYMBOLS=false
-    ZIP_EXTERNAL_DEBUG_SYMBOLS=false
-  elif test "x$with_native_debug_symbols" = xexternal; then
-
-    if test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xlinux; then
-      if test "x$OBJCOPY" = x; then
-        # enabling of enable-debug-symbols and can't find objcopy
-        # this is an error
-        AC_MSG_ERROR([Unable to find objcopy, cannot enable native debug symbols])
-      fi
-    fi
-
-    COMPILE_WITH_DEBUG_SYMBOLS=true
-    COPY_DEBUG_SYMBOLS=true
-    ZIP_EXTERNAL_DEBUG_SYMBOLS=false
-  elif test "x$with_native_debug_symbols" = xzipped; then
-
-    if test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xlinux; then
-      if test "x$OBJCOPY" = x; then
-        # enabling of enable-debug-symbols and can't find objcopy
-        # this is an error
-        AC_MSG_ERROR([Unable to find objcopy, cannot enable native debug symbols])
-      fi
-    fi
-
-    COMPILE_WITH_DEBUG_SYMBOLS=true
-    COPY_DEBUG_SYMBOLS=true
-    ZIP_EXTERNAL_DEBUG_SYMBOLS=true
-  else
-    AC_MSG_ERROR([Allowed native debug symbols are: none, internal, external, zipped])
-  fi
-
-  # --enable-debug-symbols is deprecated.
-  # Please use --with-native-debug-symbols=[internal,external,zipped] .
-  UTIL_DEPRECATED_ARG_ENABLE(debug-symbols, debug_symbols,
-        [Please use --with-native-debug-symbols=[[internal,external,zipped]] .])
-
-  # --enable-zip-debug-info is deprecated.
-  # Please use --with-native-debug-symbols=zipped .
-  UTIL_DEPRECATED_ARG_ENABLE(zip-debug-info, zip_debug_info,
-                              [Please use --with-native-debug-symbols=zipped .])
-
-  AC_SUBST(COMPILE_WITH_DEBUG_SYMBOLS)
-  AC_SUBST(COPY_DEBUG_SYMBOLS)
-  AC_SUBST(ZIP_EXTERNAL_DEBUG_SYMBOLS)
-
-  # Should we add external native debug symbols to the shipped bundles?
-  AC_MSG_CHECKING([if we should add external native debug symbols to the shipped bundles])
-  AC_ARG_WITH([external-symbols-in-bundles],
-      [AS_HELP_STRING([--with-external-symbols-in-bundles],
-      [which type of external native debug symbol information shall be shipped in product bundles (none, public, full)
-      (e.g. ship full/stripped pdbs on Windows) @<:@none@:>@])])
-
-  if test "x$with_external_symbols_in_bundles" = x || test "x$with_external_symbols_in_bundles" = xnone ; then
-    AC_MSG_RESULT([no])
-  elif test "x$with_external_symbols_in_bundles" = xfull || test "x$with_external_symbols_in_bundles" = xpublic ; then
-    if test "x$OPENJDK_TARGET_OS" != xwindows ; then
-      AC_MSG_ERROR([--with-external-symbols-in-bundles currently only works on windows!])
-    elif test "x$COPY_DEBUG_SYMBOLS" != xtrue ; then
-      AC_MSG_ERROR([--with-external-symbols-in-bundles only works when --with-native-debug-symbols=external is used!])
-    elif test "x$with_external_symbols_in_bundles" = xfull ; then
-      AC_MSG_RESULT([full])
-      SHIP_DEBUG_SYMBOLS=full
-    else
-      AC_MSG_RESULT([public])
-      SHIP_DEBUG_SYMBOLS=public
-    fi
-  else
-    AC_MSG_ERROR([$with_external_symbols_in_bundles is an unknown value for --with-external-symbols-in-bundles])
-  fi
-
-  AC_SUBST(SHIP_DEBUG_SYMBOLS)
-])
-
-################################################################################
-#
-# Gcov coverage data for hotspot
-#
-AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
-[
-  AC_ARG_ENABLE(native-coverage, [AS_HELP_STRING([--enable-native-coverage],
-      [enable native compilation with code coverage data@<:@disabled@:>@])])
-  GCOV_ENABLED="false"
-  if test "x$enable_native_coverage" = "xyes"; then
-    if test "x$TOOLCHAIN_TYPE" = "xgcc"; then
-      AC_MSG_CHECKING([if native coverage is enabled])
-      AC_MSG_RESULT([yes])
-      GCOV_CFLAGS="-fprofile-arcs -ftest-coverage -fno-inline"
-      GCOV_LDFLAGS="-fprofile-arcs"
-      JVM_CFLAGS="$JVM_CFLAGS $GCOV_CFLAGS"
-      JVM_LDFLAGS="$JVM_LDFLAGS $GCOV_LDFLAGS"
-      CFLAGS_JDKLIB="$CFLAGS_JDKLIB $GCOV_CFLAGS"
-      CFLAGS_JDKEXE="$CFLAGS_JDKEXE $GCOV_CFLAGS"
-      CXXFLAGS_JDKLIB="$CXXFLAGS_JDKLIB $GCOV_CFLAGS"
-      CXXFLAGS_JDKEXE="$CXXFLAGS_JDKEXE $GCOV_CFLAGS"
-      LDFLAGS_JDKLIB="$LDFLAGS_JDKLIB $GCOV_LDFLAGS"
-      LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE $GCOV_LDFLAGS"
-      GCOV_ENABLED="true"
-    else
-      AC_MSG_ERROR([--enable-native-coverage only works with toolchain type gcc])
-    fi
-  elif test "x$enable_native_coverage" = "xno"; then
-    AC_MSG_CHECKING([if native coverage is enabled])
-    AC_MSG_RESULT([no])
-  elif test "x$enable_native_coverage" != "x"; then
-    AC_MSG_ERROR([--enable-native-coverage can only be assigned "yes" or "no"])
-  fi
-
-  AC_SUBST(GCOV_ENABLED)
-])
-
-###############################################################################
-#
-# AddressSanitizer
-#
-AC_DEFUN_ONCE([JDKOPT_SETUP_ADDRESS_SANITIZER],
-[
-  AC_ARG_ENABLE(asan, [AS_HELP_STRING([--enable-asan],
-      [enable AddressSanitizer if possible @<:@disabled@:>@])])
-  ASAN_ENABLED="no"
-  if test "x$enable_asan" = "xyes"; then
-    case $TOOLCHAIN_TYPE in
-      gcc | clang)
-        AC_MSG_CHECKING([if asan is enabled])
-        AC_MSG_RESULT([yes])
-        ASAN_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
-        ASAN_LDFLAGS="-fsanitize=address"
-        JVM_CFLAGS="$JVM_CFLAGS $ASAN_CFLAGS"
-        JVM_LDFLAGS="$JVM_LDFLAGS $ASAN_LDFLAGS"
-        CFLAGS_JDKLIB="$CFLAGS_JDKLIB $ASAN_CFLAGS"
-        CFLAGS_JDKEXE="$CFLAGS_JDKEXE $ASAN_CFLAGS"
-        CXXFLAGS_JDKLIB="$CXXFLAGS_JDKLIB $ASAN_CFLAGS"
-        CXXFLAGS_JDKEXE="$CXXFLAGS_JDKEXE $ASAN_CFLAGS"
-        LDFLAGS_JDKLIB="$LDFLAGS_JDKLIB $ASAN_LDFLAGS"
-        LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE $ASAN_LDFLAGS"
-        ASAN_ENABLED="yes"
-        ;;
-      *)
-        AC_MSG_ERROR([--enable-asan only works with toolchain type gcc or clang])
-        ;;
-    esac
-  elif test "x$enable_asan" = "xno"; then
-    AC_MSG_CHECKING([if asan is enabled])
-    AC_MSG_RESULT([no])
-  elif test "x$enable_asan" != "x"; then
-    AC_MSG_ERROR([--enable-asan can only be assigned "yes" or "no"])
-  fi
-
-  AC_SUBST(ASAN_ENABLED)
-])
-
-################################################################################
-#
-# Static build support.  When enabled will generate static
-# libraries instead of shared libraries for all JDK libs.
-#
-AC_DEFUN_ONCE([JDKOPT_SETUP_STATIC_BUILD],
-[
-  AC_ARG_ENABLE([static-build], [AS_HELP_STRING([--enable-static-build],
-    [enable static library build @<:@disabled@:>@])])
-  STATIC_BUILD=false
-  if test "x$enable_static_build" = "xyes"; then
-    AC_MSG_CHECKING([if static build is enabled])
-    AC_MSG_RESULT([yes])
-    if test "x$OPENJDK_TARGET_OS" != "xmacosx"; then
-      AC_MSG_ERROR([--enable-static-build is only supported for macosx builds])
-    fi
-    STATIC_BUILD_CFLAGS="-DSTATIC_BUILD=1"
-    CFLAGS_JDKLIB_EXTRA="$CFLAGS_JDKLIB_EXTRA $STATIC_BUILD_CFLAGS"
-    CXXFLAGS_JDKLIB_EXTRA="$CXXFLAGS_JDKLIB_EXTRA $STATIC_BUILD_CFLAGS"
-    STATIC_BUILD=true
-  elif test "x$enable_static_build" = "xno"; then
-    AC_MSG_CHECKING([if static build is enabled])
-    AC_MSG_RESULT([no])
-  elif test "x$enable_static_build" != "x"; then
-    AC_MSG_ERROR([--enable-static-build can only be assigned "yes" or "no"])
-  fi
-
-  AC_SUBST(STATIC_BUILD)
-])
-
-################################################################################
-#
-# jlink options.
-# We always keep packaged modules in JDK image.
-#
-AC_DEFUN_ONCE([JDKOPT_SETUP_JLINK_OPTIONS],
-[
-  AC_ARG_ENABLE([keep-packaged-modules], [AS_HELP_STRING([--disable-keep-packaged-modules],
-    [Do not keep packaged modules in jdk image @<:@enable@:>@])])
-
-  AC_MSG_CHECKING([if packaged modules are kept])
-  if test "x$enable_keep_packaged_modules" = "xyes"; then
-    AC_MSG_RESULT([yes])
-    JLINK_KEEP_PACKAGED_MODULES=true
-  elif test "x$enable_keep_packaged_modules" = "xno"; then
-    AC_MSG_RESULT([no])
-    JLINK_KEEP_PACKAGED_MODULES=false
-  elif test "x$enable_keep_packaged_modules" = "x"; then
-    AC_MSG_RESULT([yes (default)])
-    JLINK_KEEP_PACKAGED_MODULES=true
-  else
-    AC_MSG_RESULT([error])
-    AC_MSG_ERROR([--enable-keep-packaged-modules accepts no argument])
-  fi
-
-  AC_SUBST(JLINK_KEEP_PACKAGED_MODULES)
-])
-
-################################################################################
-#
-# Check if building of the jtreg failure handler should be enabled.
-#
-AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_FAILURE_HANDLER],
-[
-  AC_ARG_ENABLE([jtreg-failure-handler], [AS_HELP_STRING([--enable-jtreg-failure-handler],
-    [forces build of the jtreg failure handler to be enabled, missing dependencies
-     become fatal errors. Default is auto, where the failure handler is built if all
-     dependencies are present and otherwise just disabled.])])
-
-  AC_MSG_CHECKING([if jtreg failure handler should be built])
-
-  if test "x$enable_jtreg_failure_handler" = "xyes"; then
-    if test "x$JT_HOME" = "x"; then
-      AC_MSG_ERROR([Cannot enable jtreg failure handler without jtreg.])
-    else
-      BUILD_FAILURE_HANDLER=true
-      AC_MSG_RESULT([yes, forced])
-    fi
-  elif test "x$enable_jtreg_failure_handler" = "xno"; then
-    BUILD_FAILURE_HANDLER=false
-    AC_MSG_RESULT([no, forced])
-  elif test "x$enable_jtreg_failure_handler" = "xauto" \
-      || test "x$enable_jtreg_failure_handler" = "x"; then
-    if test "x$JT_HOME" = "x"; then
-      BUILD_FAILURE_HANDLER=false
-      AC_MSG_RESULT([no, missing jtreg])
-    else
-      BUILD_FAILURE_HANDLER=true
-      AC_MSG_RESULT([yes, jtreg present])
-    fi
-  else
-    AC_MSG_ERROR([Invalid value for --enable-jtreg-failure-handler: $enable_jtreg_failure_handler])
-  fi
-
-  AC_SUBST(BUILD_FAILURE_HANDLER)
-])
-
-################################################################################
-#
-# Enable or disable generation of the classlist at build time
-#
-AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
-[
-  AC_ARG_ENABLE([generate-classlist], [AS_HELP_STRING([--disable-generate-classlist],
-      [forces enabling or disabling of the generation of a CDS classlist at build time.
-      Default is to generate it when either the server or client JVMs are built and
-      enable-cds is true.])])
-
-  # Check if it's likely that it's possible to generate the classlist. Depending
-  # on exact jvm configuration it could be possible anyway.
-  if test "x$ENABLE_CDS" = "xtrue" && (HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client)); then
-    ENABLE_GENERATE_CLASSLIST_POSSIBLE="true"
-  else
-    ENABLE_GENERATE_CLASSLIST_POSSIBLE="false"
-  fi
-
-  AC_MSG_CHECKING([if the CDS classlist generation should be enabled])
-  if test "x$enable_generate_classlist" = "xyes"; then
-    AC_MSG_RESULT([yes, forced])
-    ENABLE_GENERATE_CLASSLIST="true"
-    if test "x$ENABLE_GENERATE_CLASSLIST_POSSIBLE" = "xfalse"; then
-      AC_MSG_WARN([Generation of classlist might not be possible with JVM Variants $JVM_VARIANTS and enable-cds=$ENABLE_CDS])
-    fi
-  elif test "x$enable_generate_classlist" = "xno"; then
-    AC_MSG_RESULT([no, forced])
-    ENABLE_GENERATE_CLASSLIST="false"
-  elif test "x$enable_generate_classlist" = "x"; then
-    if test "x$ENABLE_GENERATE_CLASSLIST_POSSIBLE" = "xtrue"; then
-      AC_MSG_RESULT([yes])
-      ENABLE_GENERATE_CLASSLIST="true"
-    else
-      AC_MSG_RESULT([no])
-      ENABLE_GENERATE_CLASSLIST="false"
-    fi
-  else
-    AC_MSG_ERROR([Invalid value for --enable-generate-classlist: $enable_generate_classlist])
-  fi
-
-  AC_SUBST(ENABLE_GENERATE_CLASSLIST)
-])
-
-################################################################################
-#
-# Optionally filter resource translations
-#
-AC_DEFUN([JDKOPT_EXCLUDE_TRANSLATIONS],
-[
-  AC_ARG_WITH([exclude-translations], [AS_HELP_STRING([--with-exclude-translations],
-      [a comma separated list of locales to exclude translations for. Default is
-      to include all translations present in the source.])])
-
-  EXCLUDE_TRANSLATIONS=""
-  AC_MSG_CHECKING([if any translations should be excluded])
-  if test "x$with_exclude_translations" != "x"; then
-    EXCLUDE_TRANSLATIONS="${with_exclude_translations//,/ }"
-    AC_MSG_RESULT([yes: $EXCLUDE_TRANSLATIONS])
-  else
-    AC_MSG_RESULT([no])
-  fi
-
-  AC_SUBST(EXCLUDE_TRANSLATIONS)
-])
-
-################################################################################
-#
-# Optionally disable man pages
-#
-AC_DEFUN([JDKOPT_ENABLE_DISABLE_MANPAGES],
-[
-  AC_ARG_ENABLE([manpages], [AS_HELP_STRING([--disable-manpages],
-      [Set to disable building of man pages @<:@enabled@:>@])])
-
-  BUILD_MANPAGES="true"
-  AC_MSG_CHECKING([if man pages should be built])
-  if test "x$enable_manpages" = "x"; then
-    AC_MSG_RESULT([yes])
-  elif test "x$enable_manpages" = "xyes"; then
-    AC_MSG_RESULT([yes, forced])
-  elif test "x$enable_manpages" = "xno"; then
-    AC_MSG_RESULT([no, forced])
-    BUILD_MANPAGES="false"
-  else
-    AC_MSG_RESULT([no])
-    AC_MSG_ERROR([--enable-manpages can only yes/no or empty])
-  fi
-
-  AC_SUBST(BUILD_MANPAGES)
-])
-
-################################################################################
-#
-# Disable the default CDS archive generation
-#   cross compilation - disabled
-#
-AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
-[
-  AC_ARG_ENABLE([cds-archive], [AS_HELP_STRING([--disable-cds-archive],
-      [Set to disable generation of a default CDS archive in the product image @<:@enabled@:>@])])
-
-  AC_MSG_CHECKING([if a default CDS archive should be generated])
-  if test "x$ENABLE_CDS" = "xfalse"; then
-    AC_MSG_RESULT([no, because CDS is disabled])
-    BUILD_CDS_ARCHIVE="false"
-  elif test "x$COMPILE_TYPE" = "xcross"; then
-    AC_MSG_RESULT([no, not possible with cross compilation])
-    BUILD_CDS_ARCHIVE="false"
-  elif test "x$enable_cds_archive" = "xyes"; then
-    AC_MSG_RESULT([yes, forced])
-    BUILD_CDS_ARCHIVE="true"
-  elif test "x$enable_cds_archive" = "x"; then
-    AC_MSG_RESULT([yes])
-    BUILD_CDS_ARCHIVE="true"
-  elif test "x$enable_cds_archive" = "xno"; then
-    AC_MSG_RESULT([no, forced])
-    BUILD_CDS_ARCHIVE="false"
-  else
-    AC_MSG_RESULT([no])
-    AC_MSG_ERROR([--enable-cds_archive can only be yes/no or empty])
-  fi
-
-  AC_SUBST(BUILD_CDS_ARCHIVE)
-])
-
-################################################################################
-#
-# Disallow any output from containing absolute paths from the build system.
-# This setting defaults to allowed on debug builds and not allowed on release
-# builds.
-#
-AC_DEFUN([JDKOPT_ALLOW_ABSOLUTE_PATHS_IN_OUTPUT],
-[
-  AC_ARG_ENABLE([absolute-paths-in-output],
-      [AS_HELP_STRING([--disable-absolute-paths-in-output],
-       [Set to disable to prevent any absolute paths from the build to end up in
-        any of the build output. @<:@disabled in release builds, otherwise enabled@:>@])
-      ])
-
-  AC_MSG_CHECKING([if absolute paths should be allowed in the build output])
-  if test "x$enable_absolute_paths_in_output" = "xno"; then
-    AC_MSG_RESULT([no, forced])
-    ALLOW_ABSOLUTE_PATHS_IN_OUTPUT="false"
-  elif test "x$enable_absolute_paths_in_output" = "xyes"; then
-    AC_MSG_RESULT([yes, forced])
-    ALLOW_ABSOLUTE_PATHS_IN_OUTPUT="true"
-  elif test "x$DEBUG_LEVEL" = "xrelease"; then
-    AC_MSG_RESULT([no, release build])
-    ALLOW_ABSOLUTE_PATHS_IN_OUTPUT="false"
-  else
-    AC_MSG_RESULT([yes, debug build])
-    ALLOW_ABSOLUTE_PATHS_IN_OUTPUT="true"
-  fi
-
-  AC_SUBST(ALLOW_ABSOLUTE_PATHS_IN_OUTPUT)
-])
-
-################################################################################
-#
-# Check and set options related to reproducible builds.
-#
-AC_DEFUN_ONCE([JDKOPT_SETUP_REPRODUCIBLE_BUILD],
-[
-  AC_ARG_WITH([source-date], [AS_HELP_STRING([--with-source-date],
-      [how to set SOURCE_DATE_EPOCH ('updated', 'current', 'version' a timestamp or an ISO-8601 date) @<:@updated@:>@])],
-      [with_source_date_present=true], [with_source_date_present=false])
-
-  AC_MSG_CHECKING([what source date to use])
-
-  if test "x$with_source_date" = xyes; then
-    AC_MSG_ERROR([--with-source-date must have a value])
-  elif test "x$with_source_date" = xupdated || test "x$with_source_date" = x; then
-    # Tell the makefiles to update at each build
-    SOURCE_DATE=updated
-    AC_MSG_RESULT([determined at build time, from 'updated'])
-  elif test "x$with_source_date" = xcurrent; then
-    # Set the current time
-    SOURCE_DATE=$($DATE +"%s")
-    AC_MSG_RESULT([$SOURCE_DATE, from 'current'])
-  elif test "x$with_source_date" = xversion; then
-    # Use the date from version-numbers
-    UTIL_GET_EPOCH_TIMESTAMP(SOURCE_DATE, $DEFAULT_VERSION_DATE)
-    if test "x$SOURCE_DATE" = x; then
-      AC_MSG_RESULT([unavailable])
-      AC_MSG_ERROR([Cannot convert DEFAULT_VERSION_DATE to timestamp])
-    fi
-    AC_MSG_RESULT([$SOURCE_DATE, from 'version'])
-  else
-    # It's a timestamp, an ISO-8601 date, or an invalid string
+  # If --with-version-string is set, process it first. It is possible to
+  # override parts with more specific flags, since these are processed later.
+  AC_ARG_WITH(version-string, [AS_HELP_STRING([--with-version-string],
+      [Set version string @<:@calculated@:>@])])
+  if test "x$with_version_string" = xyes; then
+    AC_MSG_ERROR([--with-version-string must have a value])
+  elif test "x$with_version_string" != x; then
     # Additional [] needed to keep m4 from mangling shell constructs.
-    if [ [[ "$with_source_date" =~ ^[0-9][0-9]*$ ]] ] ; then
-      SOURCE_DATE=$with_source_date
-      AC_MSG_RESULT([$SOURCE_DATE, from timestamp on command line])
+    if [ [[ $with_version_string =~ ^([0-9]+)(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(-([a-zA-Z]+))?((\+)([0-9]+)?(-([-a-zA-Z0-9.]+))?)?$ ]] ]; then
+      VERSION_FEATURE=${BASH_REMATCH[[1]]}
+      VERSION_INTERIM=${BASH_REMATCH[[3]]}
+      VERSION_UPDATE=${BASH_REMATCH[[5]]}
+      VERSION_PATCH=${BASH_REMATCH[[7]]}
+      VERSION_EXTRA1=${BASH_REMATCH[[9]]}
+      VERSION_EXTRA2=${BASH_REMATCH[[11]]}
+      VERSION_EXTRA3=${BASH_REMATCH[[13]]}
+      VERSION_PRE=${BASH_REMATCH[[15]]}
+      version_plus_separator=${BASH_REMATCH[[17]]}
+      VERSION_BUILD=${BASH_REMATCH[[18]]}
+      VERSION_OPT=${BASH_REMATCH[[20]]}
+      # Unspecified numerical fields are interpreted as 0.
+      if test "x$VERSION_INTERIM" = x; then
+        VERSION_INTERIM=0
+      fi
+      if test "x$VERSION_UPDATE" = x; then
+        VERSION_UPDATE=0
+      fi
+      if test "x$VERSION_PATCH" = x; then
+        VERSION_PATCH=0
+      fi
+      if test "x$VERSION_EXTRA1" = x; then
+        VERSION_EXTRA1=0
+      fi
+      if test "x$VERSION_EXTRA2" = x; then
+        VERSION_EXTRA2=0
+      fi
+      if test "x$VERSION_EXTRA3" = x; then
+        VERSION_EXTRA3=0
+      fi
+      if test "x$version_plus_separator" != x \
+          && test "x$VERSION_BUILD$VERSION_OPT" = x; then
+        AC_MSG_ERROR([Version string contains + but both 'BUILD' and 'OPT' are missing])
+      fi
+      # Stop the version part process from setting default values.
+      # We still allow them to explicitly override though.
+      NO_DEFAULT_VERSION_PARTS=true
     else
-      UTIL_GET_EPOCH_TIMESTAMP(SOURCE_DATE, $with_source_date)
-      if test "x$SOURCE_DATE" != x; then
-        AC_MSG_RESULT([$SOURCE_DATE, from ISO-8601 date on command line])
-      else
-        AC_MSG_RESULT([unavailable])
-        AC_MSG_ERROR([Cannot parse date string "$with_source_date"])
-      fi
+      AC_MSG_ERROR([--with-version-string fails to parse as a valid version string: $with_version_string])
     fi
   fi
 
-  REPRODUCIBLE_BUILD_DEFAULT=$with_source_date_present
+  AC_ARG_WITH(version-pre, [AS_HELP_STRING([--with-version-pre],
+      [Set the base part of the version 'PRE' field (pre-release identifier) @<:@'internal'@:>@])],
+      [with_version_pre_present=true], [with_version_pre_present=false])
 
-  if test "x$OPENJDK_BUILD_OS" = xwindows && \
-      test "x$ALLOW_ABSOLUTE_PATHS_IN_OUTPUT" = xfalse; then
-    # To support banning absolute paths on Windows, we must use the -pathmap
-    # method, which requires reproducible builds.
-    REPRODUCIBLE_BUILD_DEFAULT=true
-  fi
-
-  UTIL_ARG_ENABLE(NAME: reproducible-build, DEFAULT: $REPRODUCIBLE_BUILD_DEFAULT,
-      RESULT: ENABLE_REPRODUCIBLE_BUILD,
-      DESC: [enable reproducible builds (not yet fully functional)],
-      DEFAULT_DESC: [enabled if --with-source-date is given or on Windows without absolute paths])
-
-  if test "x$OPENJDK_BUILD_OS" = xwindows && \
-      test "x$ALLOW_ABSOLUTE_PATHS_IN_OUTPUT" = xfalse && \
-      test "x$ENABLE_REPRODUCIBLE_BUILD" = xfalse; then
-    AC_MSG_NOTICE([On Windows it is not possible to combine  --disable-reproducible-builds])
-    AC_MSG_NOTICE([with --disable-absolute-paths-in-output.])
-    AC_MSG_ERROR([Cannot continue])
-  fi
-
-  AC_SUBST(SOURCE_DATE)
-  AC_SUBST(ENABLE_REPRODUCIBLE_BUILD)
-])
-
-################################################################################
-#
-# Setup signing on macOS. This can either be setup to sign with a real identity
-# and enabling the hardened runtime, or it can simply add the debug entitlement
-# com.apple.security.get-task-allow without actually signing any binaries. The
-# latter is needed to be able to debug processes and dump core files on modern
-# versions of macOS. It can also be skipped completely.
-#
-# Check if codesign will run with the given parameters
-# $1: Parameters to run with
-# $2: Checking message
-# Sets CODESIGN_SUCCESS=true/false
-AC_DEFUN([JDKOPT_CHECK_CODESIGN_PARAMS],
-[
-  PARAMS="$1"
-  MESSAGE="$2"
-  CODESIGN_TESTFILE="$CONFIGURESUPPORT_OUTPUTDIR/codesign-testfile"
-  $RM "$CODESIGN_TESTFILE"
-  $TOUCH "$CODESIGN_TESTFILE"
-  CODESIGN_SUCCESS=false
-  eval \"$CODESIGN\" $PARAMS \"$CODESIGN_TESTFILE\" 2>&AS_MESSAGE_LOG_FD \
-      >&AS_MESSAGE_LOG_FD && CODESIGN_SUCCESS=true
-  $RM "$CODESIGN_TESTFILE"
-  AC_MSG_CHECKING([$MESSAGE])
-  if test "x$CODESIGN_SUCCESS" = "xtrue"; then
-    AC_MSG_RESULT([yes])
+  if test "x$with_version_pre_present" = xtrue; then
+    if test "x$with_version_pre" = xyes; then
+      AC_MSG_ERROR([--with-version-pre must have a value])
+    elif test "x$with_version_pre" = xno; then
+      # Interpret --without-* as empty string instead of the literal "no"
+      VERSION_PRE=
+    else
+      # Only [a-zA-Z] is allowed in the VERSION_PRE. Outer [ ] to quote m4.
+      [ VERSION_PRE=`$ECHO "$with_version_pre" | $TR -c -d '[a-z][A-Z]'` ]
+      if test "x$VERSION_PRE" != "x$with_version_pre"; then
+        AC_MSG_WARN([--with-version-pre value has been sanitized from '$with_version_pre' to '$VERSION_PRE'])
+      fi
+    fi
   else
-    AC_MSG_RESULT([no])
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      # Default is to use "internal" as pre
+      VERSION_PRE="internal"
+    fi
   fi
-])
 
-AC_DEFUN([JDKOPT_CHECK_CODESIGN_HARDENED],
-[
-  JDKOPT_CHECK_CODESIGN_PARAMS([-s \"$MACOSX_CODESIGN_IDENTITY\" --option runtime],
-      [if codesign with hardened runtime is possible])
-])
+  AC_ARG_WITH(version-opt, [AS_HELP_STRING([--with-version-opt],
+      [Set version 'OPT' field (build metadata) @<:@<timestamp>.<user>.<dirname>@:>@])],
+      [with_version_opt_present=true], [with_version_opt_present=false])
 
-AC_DEFUN([JDKOPT_CHECK_CODESIGN_DEBUG],
-[
-  JDKOPT_CHECK_CODESIGN_PARAMS([-s -], [if debug mode codesign is possible])
-])
-
-AC_DEFUN([JDKOPT_SETUP_MACOSX_SIGNING],
-[
-  ENABLE_CODESIGN=false
-  if test "x$OPENJDK_TARGET_OS" = "xmacosx" && test "x$CODESIGN" != "x"; then
-
-    UTIL_ARG_WITH(NAME: macosx-codesign, TYPE: literal, OPTIONAL: true,
-        VALID_VALUES: [hardened debug auto], DEFAULT: auto,
-        ENABLED_DEFAULT: true,
-        CHECKING_MSG: [for macosx code signing mode],
-        DESC: [set the macosx code signing mode (hardened, debug, auto)]
-    )
-
-    MACOSX_CODESIGN_MODE=disabled
-    if test "x$MACOSX_CODESIGN_ENABLED" = "xtrue"; then
-
-      # Check for user provided code signing identity.
-      UTIL_ARG_WITH(NAME: macosx-codesign-identity, TYPE: string,
-          DEFAULT: openjdk_codesign, CHECK_VALUE: UTIL_CHECK_STRING_NON_EMPTY,
-          DESC: [specify the macosx code signing identity],
-          CHECKING_MSG: [for macosx code signing identity]
-      )
-      AC_SUBST(MACOSX_CODESIGN_IDENTITY)
-
-      if test "x$MACOSX_CODESIGN" = "xauto"; then
-        # Only try to default to hardened signing on release builds
-        if test "x$DEBUG_LEVEL" = "xrelease"; then
-          JDKOPT_CHECK_CODESIGN_HARDENED
-          if test "x$CODESIGN_SUCCESS" = "xtrue"; then
-            MACOSX_CODESIGN_MODE=hardened
-          fi
-        fi
-        if test "x$MACOSX_CODESIGN_MODE" = "xdisabled"; then
-          JDKOPT_CHECK_CODESIGN_DEBUG
-          if test "x$CODESIGN_SUCCESS" = "xtrue"; then
-            MACOSX_CODESIGN_MODE=debug
-          fi
-        fi
-        AC_MSG_CHECKING([for macosx code signing mode])
-        AC_MSG_RESULT([$MACOSX_CODESIGN_MODE])
-      elif test "x$MACOSX_CODESIGN" = "xhardened"; then
-        JDKOPT_CHECK_CODESIGN_HARDENED
-        if test "x$CODESIGN_SUCCESS" = "xfalse"; then
-          AC_MSG_ERROR([Signing with hardened runtime is not possible])
-        fi
-        MACOSX_CODESIGN_MODE=hardened
-      elif test "x$MACOSX_CODESIGN" = "xdebug"; then
-        JDKOPT_CHECK_CODESIGN_DEBUG
-        if test "x$CODESIGN_SUCCESS" = "xfalse"; then
-          AC_MSG_ERROR([Signing in debug mode is not possible])
-        fi
-        MACOSX_CODESIGN_MODE=debug
-      else
-        AC_MSG_ERROR([unknown value for --with-macosx-codesign: $MACOSX_CODESIGN])
+  if test "x$with_version_opt_present" = xtrue; then
+    if test "x$with_version_opt" = xyes; then
+      AC_MSG_ERROR([--with-version-opt must have a value])
+    elif test "x$with_version_opt" = xno; then
+      # Interpret --without-* as empty string instead of the literal "no"
+      VERSION_OPT=
+    else
+      # Only [-.a-zA-Z0-9] is allowed in the VERSION_OPT. Outer [ ] to quote m4.
+      [ VERSION_OPT=`$ECHO "$with_version_opt" | $TR -c -d '[a-z][A-Z][0-9].-'` ]
+      if test "x$VERSION_OPT" != "x$with_version_opt"; then
+        AC_MSG_WARN([--with-version-opt value has been sanitized from '$with_version_opt' to '$VERSION_OPT'])
       fi
     fi
-    AC_SUBST(MACOSX_CODESIGN_IDENTITY)
-    AC_SUBST(MACOSX_CODESIGN_MODE)
+  else
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      # Default is to calculate a string like this 'adhoc.<username>.<base dir name>'
+      # Outer [ ] to quote m4.
+      [ basedirname=`$BASENAME "$TOPDIR" | $TR -d -c '[a-z][A-Z][0-9].-'` ]
+      VERSION_OPT="adhoc.$USERNAME.$basedirname"
+    fi
   fi
+
+  AC_ARG_WITH(version-build, [AS_HELP_STRING([--with-version-build],
+      [Set version 'BUILD' field (build number) @<:@not specified@:>@])],
+      [with_version_build_present=true], [with_version_build_present=false])
+
+  if test "x$with_version_build_present" = xtrue; then
+    if test "x$with_version_build" = xyes; then
+      AC_MSG_ERROR([--with-version-build must have a value])
+    elif test "x$with_version_build" = xno; then
+      # Interpret --without-* as empty string instead of the literal "no"
+      VERSION_BUILD=
+    elif test "x$with_version_build" = x; then
+      VERSION_BUILD=
+    else
+      JDKVER_CHECK_AND_SET_NUMBER(VERSION_BUILD, $with_version_build)
+    fi
+  else
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      # Default is to not have a build number.
+      VERSION_BUILD=""
+      # FIXME: Until all code can cope with an empty VERSION_BUILD, set it to 0.
+      VERSION_BUILD=0
+    fi
+  fi
+
+  AC_ARG_WITH(version-feature, [AS_HELP_STRING([--with-version-feature],
+      [Set version 'FEATURE' field (first number) @<:@current source value@:>@])],
+      [with_version_feature_present=true], [with_version_feature_present=false])
+
+  if test "x$with_version_feature_present" = xtrue; then
+    if test "x$with_version_feature" = xyes; then
+      AC_MSG_ERROR([--with-version-feature must have a value])
+    else
+      JDKVER_CHECK_AND_SET_NUMBER(VERSION_FEATURE, $with_version_feature)
+    fi
+  else
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      # Default is to get value from version-numbers
+      VERSION_FEATURE="$DEFAULT_VERSION_FEATURE"
+    fi
+  fi
+
+  AC_ARG_WITH(version-interim, [AS_HELP_STRING([--with-version-interim],
+      [Set version 'INTERIM' field (second number) @<:@current source value@:>@])],
+      [with_version_interim_present=true], [with_version_interim_present=false])
+
+  if test "x$with_version_interim_present" = xtrue; then
+    if test "x$with_version_interim" = xyes; then
+      AC_MSG_ERROR([--with-version-interim must have a value])
+    elif test "x$with_version_interim" = xno; then
+      # Interpret --without-* as empty string (i.e. 0) instead of the literal "no"
+      VERSION_INTERIM=0
+    elif test "x$with_version_interim" = x; then
+      VERSION_INTERIM=0
+    else
+      JDKVER_CHECK_AND_SET_NUMBER(VERSION_INTERIM, $with_version_interim)
+    fi
+  else
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      # Default is 0, if unspecified
+      VERSION_INTERIM=$DEFAULT_VERSION_INTERIM
+    fi
+  fi
+
+  AC_ARG_WITH(version-update, [AS_HELP_STRING([--with-version-update],
+      [Set version 'UPDATE' field (third number) @<:@current source value@:>@])],
+      [with_version_update_present=true], [with_version_update_present=false])
+
+  if test "x$with_version_update_present" = xtrue; then
+    if test "x$with_version_update" = xyes; then
+      AC_MSG_ERROR([--with-version-update must have a value])
+    elif test "x$with_version_update" = xno; then
+      # Interpret --without-* as empty string (i.e. 0) instead of the literal "no"
+      VERSION_UPDATE=0
+    elif test "x$with_version_update" = x; then
+      VERSION_UPDATE=0
+    else
+      JDKVER_CHECK_AND_SET_NUMBER(VERSION_UPDATE, $with_version_update)
+    fi
+  else
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      # Default is 0, if unspecified
+      VERSION_UPDATE=$DEFAULT_VERSION_UPDATE
+    fi
+  fi
+
+  AC_ARG_WITH(version-patch, [AS_HELP_STRING([--with-version-patch],
+      [Set version 'PATCH' field (fourth number) @<:@not specified@:>@])],
+      [with_version_patch_present=true], [with_version_patch_present=false])
+
+  if test "x$with_version_patch_present" = xtrue; then
+    if test "x$with_version_patch" = xyes; then
+      AC_MSG_ERROR([--with-version-patch must have a value])
+    elif test "x$with_version_patch" = xno; then
+      # Interpret --without-* as empty string (i.e. 0) instead of the literal "no"
+      VERSION_PATCH=0
+    elif test "x$with_version_patch" = x; then
+      VERSION_PATCH=0
+    else
+      JDKVER_CHECK_AND_SET_NUMBER(VERSION_PATCH, $with_version_patch)
+    fi
+  else
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      # Default is 0, if unspecified
+      VERSION_PATCH=$DEFAULT_VERSION_PATCH
+    fi
+  fi
+
+  # The 1st version extra number, if any
+  AC_ARG_WITH(version-extra1, [AS_HELP_STRING([--with-version-extra1],
+      [Set 1st version extra number @<:@not specified@:>@])],
+      [with_version_extra1_present=true], [with_version_extra1_present=false])
+
+  if test "x$with_version_extra1_present" = xtrue; then
+    if test "x$with_version_extra1" = xyes; then
+      AC_MSG_ERROR([--with-version-extra1 must have a value])
+    elif test "x$with_version_extra1" = xno; then
+      # Interpret --without-* as empty string (i.e. 0) instead of the literal "no"
+      VERSION_EXTRA1=0
+    elif test "x$with_version_extra1" = x; then
+      VERSION_EXTRA1=0
+    else
+      JDKVER_CHECK_AND_SET_NUMBER(VERSION_EXTRA1, $with_version_extra1)
+    fi
+  else
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      VERSION_EXTRA1=$DEFAULT_VERSION_EXTRA1
+    fi
+  fi
+
+  # The 2nd version extra number, if any
+  AC_ARG_WITH(version-extra2, [AS_HELP_STRING([--with-version-extra2],
+      [Set 2nd version extra number @<:@not specified@:>@])],
+      [with_version_extra2_present=true], [with_version_extra2_present=false])
+
+  if test "x$with_version_extra2_present" = xtrue; then
+    if test "x$with_version_extra2" = xyes; then
+      AC_MSG_ERROR([--with-version-extra2 must have a value])
+    elif test "x$with_version_extra2" = xno; then
+      # Interpret --without-* as empty string (i.e. 0) instead of the literal "no"
+      VERSION_EXTRA2=0
+    elif test "x$with_version_extra2" = x; then
+      VERSION_EXTRA2=0
+    else
+      JDKVER_CHECK_AND_SET_NUMBER(VERSION_EXTRA2, $with_version_extra2)
+    fi
+  else
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      VERSION_EXTRA2=$DEFAULT_VERSION_EXTRA2
+    fi
+  fi
+
+  # The 3rd version extra number, if any
+  AC_ARG_WITH(version-extra3, [AS_HELP_STRING([--with-version-extra3],
+      [Set 3rd version extra number @<:@not specified@:>@])],
+      [with_version_extra3_present=true], [with_version_extra3_present=false])
+
+  if test "x$with_version_extra3_present" = xtrue; then
+    if test "x$with_version_extra3" = xyes; then
+      AC_MSG_ERROR([--with-version-extra3 must have a value])
+    elif test "x$with_version_extra3" = xno; then
+      # Interpret --without-* as empty string (i.e. 0) instead of the literal "no"
+      VERSION_EXTRA3=0
+    elif test "x$with_version_extra3" = x; then
+      VERSION_EXTRA3=0
+    else
+      JDKVER_CHECK_AND_SET_NUMBER(VERSION_EXTRA3, $with_version_extra3)
+    fi
+  else
+    if test "x$NO_DEFAULT_VERSION_PARTS" != xtrue; then
+      VERSION_EXTRA3=$DEFAULT_VERSION_EXTRA3
+    fi
+  fi
+
+  # Calculate derived version properties
+
+  # Set VERSION_IS_GA based on if VERSION_PRE has a value
+  if test "x$VERSION_PRE" = x; then
+    VERSION_IS_GA=true
+  else
+    VERSION_IS_GA=false
+  fi
+
+  # VERSION_NUMBER but always with exactly 4 positions, with 0 for empty positions.
+  VERSION_NUMBER_FOUR_POSITIONS=$VERSION_FEATURE.$VERSION_INTERIM.$VERSION_UPDATE.$VERSION_PATCH
+
+  # VERSION_NUMBER but always with all positions, with 0 for empty positions.
+  VERSION_NUMBER_ALL_POSITIONS=$VERSION_NUMBER_FOUR_POSITIONS.$VERSION_EXTRA1.$VERSION_EXTRA2.$VERSION_EXTRA3
+
+  stripped_version_number=$VERSION_NUMBER_ALL_POSITIONS
+  # Strip trailing zeroes from stripped_version_number
+  for i in 1 2 3 4 5 6 ; do stripped_version_number=${stripped_version_number%.0} ; done
+  VERSION_NUMBER=$stripped_version_number
+
+  # The complete version string, with additional build information
+  if test "x$VERSION_BUILD$VERSION_OPT" = x; then
+    VERSION_STRING=$VERSION_NUMBER${VERSION_PRE:+-$VERSION_PRE}
+  else
+    # If either build or opt is set, we need a + separator
+    VERSION_STRING=$VERSION_NUMBER${VERSION_PRE:+-$VERSION_PRE}+$VERSION_BUILD${VERSION_OPT:+-$VERSION_OPT}
+  fi
+
+  # The short version string, just VERSION_NUMBER and PRE, if present.
+  VERSION_SHORT=$VERSION_NUMBER${VERSION_PRE:+-$VERSION_PRE}
+
+  # The version date
+  AC_ARG_WITH(version-date, [AS_HELP_STRING([--with-version-date],
+      [Set version date @<:@current source value@:>@])])
+  if test "x$with_version_date" = xyes; then
+    AC_MSG_ERROR([--with-version-date must have a value])
+  elif test "x$with_version_date" != x; then
+    if [ ! [[ $with_version_date =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] ]; then
+      AC_MSG_ERROR(["$with_version_date" is not a valid version date]) 
+    else
+      VERSION_DATE="$with_version_date"
+    fi
+  else
+    VERSION_DATE="$DEFAULT_VERSION_DATE"
+  fi
+
+  # The vendor version string, if any
+  AC_ARG_WITH(vendor-version-string, [AS_HELP_STRING([--with-vendor-version-string],
+      [Set vendor version string @<:@not specified@:>@])])
+  if test "x$with_vendor_version_string" = xyes; then
+    AC_MSG_ERROR([--with-vendor-version-string must have a value])
+  elif [ ! [[ $with_vendor_version_string =~ ^[[:graph:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with--vendor-version-string contains non-graphical characters: $with_vendor_version_string])
+  else
+    VENDOR_VERSION_STRING="$with_vendor_version_string"
+  fi
+
+  # Set the MACOSX Bundle Name base
+  AC_ARG_WITH(macosx-bundle-name-base, [AS_HELP_STRING([--with-macosx-bundle-name-base],
+      [Set the MacOSX Bundle Name base. This is the base name for calculating MacOSX Bundle Names.
+      @<:@not specified@:>@])])
+  if test "x$with_macosx_bundle_name_base" = xyes; then
+    AC_MSG_ERROR([--with-macosx-bundle-name-base must have a value])
+  elif [ ! [[ $with_macosx_bundle_name_base =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-macosx-bundle-name-base contains non-printing characters: $with_macosx_bundle_name_base])
+  elif test "x$with_macosx_bundle_name_base" != x; then
+    # Set MACOSX_BUNDLE_NAME_BASE to the configured value.
+    MACOSX_BUNDLE_NAME_BASE="$with_macosx_bundle_name_base"
+  fi
+  AC_SUBST(MACOSX_BUNDLE_NAME_BASE)
+
+  # Set the MACOSX Bundle ID base
+  AC_ARG_WITH(macosx-bundle-id-base, [AS_HELP_STRING([--with-macosx-bundle-id-base],
+      [Set the MacOSX Bundle ID base. This is the base ID for calculating MacOSX Bundle IDs.
+      @<:@not specified@:>@])])
+  if test "x$with_macosx_bundle_id_base" = xyes; then
+    AC_MSG_ERROR([--with-macosx-bundle-id-base must have a value])
+  elif [ ! [[ $with_macosx_bundle_id_base =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-macosx-bundle-id-base contains non-printing characters: $with_macosx_bundle_id_base])
+  elif test "x$with_macosx_bundle_id_base" != x; then
+    # Set MACOSX_BUNDLE_ID_BASE to the configured value.
+    MACOSX_BUNDLE_ID_BASE="$with_macosx_bundle_id_base"
+  else
+    # If using the default value, append the VERSION_PRE if there is one
+    # to make it possible to tell official builds apart from developer builds
+    if test "x$VERSION_PRE" != x; then
+      MACOSX_BUNDLE_ID_BASE="$MACOSX_BUNDLE_ID_BASE-$VERSION_PRE"
+    fi
+  fi
+  AC_SUBST(MACOSX_BUNDLE_ID_BASE)
+
+  # Set the MACOSX CFBundleVersion field
+  AC_ARG_WITH(macosx-bundle-build-version, [AS_HELP_STRING([--with-macosx-bundle-build-version],
+      [Set the MacOSX Bundle CFBundleVersion field. This key is a machine-readable
+      string composed of one to three period-separated integers and should represent the
+      build version. Defaults to the build number.])])
+  if test "x$with_macosx_bundle_build_version" = xyes; then
+    AC_MSG_ERROR([--with-macosx-bundle-build-version must have a value])
+  elif [ ! [[ $with_macosx_bundle_build_version =~ ^[0-9\.]*$ ]] ]; then
+    AC_MSG_ERROR([--with-macosx-bundle-build-version contains non numbers and periods: $with_macosx_bundle_build_version])
+  elif test "x$with_macosx_bundle_build_version" != x; then
+    MACOSX_BUNDLE_BUILD_VERSION="$with_macosx_bundle_build_version"
+  else
+    MACOSX_BUNDLE_BUILD_VERSION="$VERSION_BUILD"
+    # If VERSION_OPT consists of only numbers and periods, add it.
+    if [ [[ $VERSION_OPT =~ ^[0-9\.]+$ ]] ]; then
+      MACOSX_BUNDLE_BUILD_VERSION+=".$VERSION_OPT"
+    fi
+  fi
+  AC_SUBST(MACOSX_BUNDLE_BUILD_VERSION)
+
+  # We could define --with flags for these, if really needed
+  VERSION_CLASSFILE_MAJOR="$DEFAULT_VERSION_CLASSFILE_MAJOR"
+  VERSION_CLASSFILE_MINOR="$DEFAULT_VERSION_CLASSFILE_MINOR"
+
+  AC_MSG_CHECKING([for version string])
+  AC_MSG_RESULT([$VERSION_STRING])
+
+  AC_SUBST(VERSION_FEATURE)
+  AC_SUBST(VERSION_INTERIM)
+  AC_SUBST(VERSION_UPDATE)
+  AC_SUBST(VERSION_PATCH)
+  AC_SUBST(VERSION_EXTRA1)
+  AC_SUBST(VERSION_EXTRA2)
+  AC_SUBST(VERSION_EXTRA3)
+  AC_SUBST(VERSION_PRE)
+  AC_SUBST(VERSION_BUILD)
+  AC_SUBST(VERSION_OPT)
+  AC_SUBST(VERSION_NUMBER)
+  AC_SUBST(VERSION_NUMBER_FOUR_POSITIONS)
+  AC_SUBST(VERSION_STRING)
+  AC_SUBST(VERSION_SHORT)
+  AC_SUBST(VERSION_IS_GA)
+  AC_SUBST(VERSION_DATE)
+  AC_SUBST(VENDOR_VERSION_STRING)
+  AC_SUBST(VERSION_CLASSFILE_MAJOR)
+  AC_SUBST(VERSION_CLASSFILE_MINOR)
+
 ])
