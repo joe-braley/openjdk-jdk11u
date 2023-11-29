@@ -373,12 +373,12 @@ AC_DEFUN([PLATFORM_SETUP_TARGET_CPU_BITS],
   # cross   == traditional cross compilation, target system != build system; special toolchain needed
   # reduced == using native compilers, but with special flags (e.g. -m32) to produce 32-bit builds on 64-bit machines
   #
-  if test "x$OPENJDK_BUILD_AUTOCONF_NAME" != "x$OPENJDK_TARGET_AUTOCONF_NAME"; then
-    # We're doing a proper cross-compilation
-    COMPILE_TYPE="cross"
-  else
-    COMPILE_TYPE="native"
-  fi
+#   if test "x$OPENJDK_BUILD_AUTOCONF_NAME" != "x$OPENJDK_TARGET_AUTOCONF_NAME"; then
+#    # We're doing a proper cross-compilation
+#    COMPILE_TYPE="cross"
+#  else
+  COMPILE_TYPE="native"
+#  fi
 
   if test "x$with_target_bits" != x; then
     if test "x$COMPILE_TYPE" = "xcross"; then
@@ -566,6 +566,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HELPER],
     HOTSPOT_$1_CPU_DEFINE=S390
   elif test "x$OPENJDK_$1_CPU" = xriscv64; then
     HOTSPOT_$1_CPU_DEFINE=RISCV
+  elif test "x$OPENJDK_$1_CPU" = xloongarch64; then
+    HOTSPOT_$1_CPU_DEFINE=LOONGARCH64
   elif test "x$OPENJDK_$1_CPU" != x; then
     HOTSPOT_$1_CPU_DEFINE=$(echo $OPENJDK_$1_CPU | tr a-z A-Z)
   fi
